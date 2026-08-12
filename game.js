@@ -46,6 +46,30 @@ const GRID_LINE_COLORS = { dark: '#22222e', light: '#dfe2f0' };
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
+function applyTheme(theme) {
+  const isLight = theme === 'light';
+  document.body.classList.toggle('light', isLight);
+  themeIcon.textContent = isLight ? '☀️' : '🌙';
+  themeToggle.setAttribute('aria-pressed', String(isLight));
+  const label = isLight ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro';
+  themeToggle.setAttribute('aria-label', label);
+  themeToggle.title = label;
+}
+
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  applyTheme(saved === 'light' ? 'light' : 'dark');
+}
+
+themeToggle.addEventListener('click', () => {
+  const isLight = document.body.classList.contains('light');
+  const newTheme = isLight ? 'dark' : 'light';
+  applyTheme(newTheme);
+  localStorage.setItem(THEME_KEY, newTheme);
+});
+
+initTheme();
+
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
 }
