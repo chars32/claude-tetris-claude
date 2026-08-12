@@ -93,6 +93,19 @@ jobs:
             Nunca crees labels nuevos.
 
             ## Paso 4 — Publicar el diagnóstico (en español)
+            El comentario DEBE estar escrito en Markdown válido de GitHub (GitHub Flavored Markdown), de forma
+            que se renderice correctamente en la interfaz de GitHub. En concreto:
+
+            - Usa encabezados `##`/`###`, negritas `**...**`, listas `-` y listas numeradas.
+            - Rodea nombres de archivo, funciones y referencias de línea con comillas invertidas: `game.js:120-135`.
+            - Los fragmentos de código van en bloques vallados con triple backtick e indicando el lenguaje
+              (por ejemplo ```js), nunca como texto suelto.
+            - Los criterios de aceptación van como checklist de tareas: `- [ ] ...`.
+            - Deja una línea en blanco entre bloques (párrafos, listas, encabezados); si no, GitHub los une.
+            - No uses HTML salvo el marcador `<!-- claude-triage -->` de la primera línea.
+            - Escapa o evita caracteres que GitHub interprete mal (`#` al inicio de línea si no es encabezado,
+              `@` seguido de un nombre, que generaría una mención no deseada).
+
             Escribe el comentario a un archivo temporal con este formato EXACTO (incluido el marcador inicial):
 
             ```
