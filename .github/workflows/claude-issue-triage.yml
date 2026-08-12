@@ -1,0 +1,144 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+concurrency:
+  group: claude-issue-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    # Evita bucles si un bot abre o edita el issue
+    if: github.event.sender.type != 'Bot'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Asegurar labels del proyecto
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          crear() { gh label create "$1" --color "$2" --description "$3" --force; }
+
+          # Tipo
+          crear "bug"              "d73a4a" "Algo no funciona como se espera"
+          crear "enhancement"      "a2eeef" "Nueva funcionalidad o mejora"
+          crear "docs"             "0075ca" "Documentación (README, comentarios)"
+          crear "question"         "d876e3" "Duda o petición de información"
+          crear "refactor"         "fbca04" "Reorganización de código sin cambio funcional"
+
+          # Área
+          crear "area:gameplay"    "1d76db" "Lógica del juego: piezas, rotación, colisiones, líneas"
+          crear "area:controls"    "1d76db" "Entrada de teclado y controles"
+          crear "area:ui-ux"       "1d76db" "Interfaz, estilos y experiencia de usuario"
+          crear "area:performance" "1d76db" "Rendimiento, bucle de render, fluidez"
+          crear "area:scoring"     "1d76db" "Puntuación, niveles y velocidad"
+
+          # Prioridad
+          crear "P0-critical"      "b60205" "Bloqueante: el juego no es jugable"
+          crear "P1-alta"          "e99695" "Importante, afecta la experiencia"
+          crear "P2-normal"        "c2e0c6" "Mejora deseable, sin urgencia"
+
+          # Complejidad
+          crear "size:S"           "ededed" "Cambio pequeño y localizado"
+          crear "size:M"           "d4c5f9" "Cambio medio, varios puntos del código"
+          crear "size:L"           "5319e7" "Cambio grande o con rediseño"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Analizar issue con Claude
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--allowed-tools "Read,Grep,Glob,Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(gh label list:*),Bash(gh api:*),Bash(cat:*),Bash(jq:*)"'
+          prompt: |
+            Eres el responsable de triage de issues de este repositorio: un juego de Tetris en JavaScript vanilla
+            (`game.js`, `index.html`, `style.css`, sin build ni dependencias).
+
+            Trabaja sobre el issue número ${{ github.event.issue.number }} del repo ${{ github.repository }}.
+
+            ## Paso 1 — Leer el issue
+            Ejecuta: `gh issue view ${{ github.event.issue.number }} --json title,body,labels,comments`
+
+            ## Paso 2 — Leer el código ANTES de concluir nada
+            Usa Read/Grep/Glob sobre los archivos del repo (están en el directorio de trabajo) para localizar
+            las funciones realmente implicadas. No especules: cita referencias reales con el formato
+            `game.js:120-135`. Si el issue menciona un comportamiento concreto, busca la función que lo produce.
+
+            ## Paso 3 — Aplicar labels
+            Usa ÚNICAMENTE labels de esta lista cerrada (ya existen todos en el repo):
+
+            - Tipo (elige EXACTAMENTE 1): bug, enhancement, docs, question, refactor
+            - Área (elige 1 o MÁS): area:gameplay, area:controls, area:ui-ux, area:performance, area:scoring
+            - Prioridad (elige EXACTAMENTE 1): P0-critical, P1-alta, P2-normal
+            - Complejidad (elige EXACTAMENTE 1): size:S, size:M, size:L
+
+            Aplícalos con:
+            `gh issue edit ${{ github.event.issue.number }} --add-label "bug,area:gameplay,P1-alta,size:S"`
+
+            Si el issue ya tenía labels de estas familias que ahora no corresponden, quítalos con `--remove-label`.
+            Nunca crees labels nuevos.
+
+            ## Paso 4 — Publicar el diagnóstico (en español)
+            Escribe el comentario a un archivo temporal con este formato EXACTO (incluido el marcador inicial):
+
+            ```
+            <!-- claude-triage -->
+            ## 🔍 Diagnóstico automático
+
+            **Resumen:** …
+
+            **Comportamiento actual vs esperado:** …
+
+            **Causa probable:** … (con referencias tipo `game.js:120-135`)
+
+            **Archivos y funciones implicadas:** …
+
+            **Enfoque de solución propuesto:**
+            1. …
+            2. …
+
+            **Criterios de aceptación:**
+            - [ ] …
+
+            **Riesgos / efectos colaterales:** …
+
+            **Confianza:** alta | media | baja — si es baja, indica qué información falta.
+
+            ---
+            *Generado automáticamente. Para implementar la solución, comenta `@claude` en este issue.*
+            ```
+
+            Si el issue es ambiguo, marca confianza baja y lista las preguntas pendientes en lugar de inventar
+            una causa. Si es una `question` o `docs`, adapta las secciones que no apliquen con "N/A" en vez de
+            rellenarlas con relleno.
+
+            ## Paso 5 — Idempotencia (importante)
+            Este workflow también se dispara al EDITAR el issue, así que no dupliques comentarios.
+            Busca primero un comentario previo tuyo:
+
+            ```
+            gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+              --jq '.[] | select(.body | startswith("<!-- claude-triage -->")) | .id'
+            ```
+
+            - Si devuelve un id: actualízalo con
+              `gh api --method PATCH /repos/${{ github.repository }}/issues/comments/<ID> -f body="$(cat /tmp/diagnostico.md)"`
+            - Si no devuelve nada: crea uno con
+              `gh issue comment ${{ github.event.issue.number }} --body-file /tmp/diagnostico.md`
+
+            No modifiques el cuerpo del issue ni ningún archivo del repositorio. Tu única salida son los
+            labels y ese comentario.
