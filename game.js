@@ -40,6 +40,7 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const themeIcon = document.getElementById('theme-icon');
 
 const THEME_KEY = 'tetris-theme';
 const GRID_LINE_COLORS = { dark: '#22222e', light: '#dfe2f0' };
@@ -331,22 +332,4 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', init);
 
-function applyTheme(theme) {
-  document.body.classList.toggle('light', theme === 'light');
-  themeToggle.checked = theme === 'light';
-}
-
-function initTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  applyTheme(saved === 'light' ? 'light' : 'dark');
-}
-
-themeToggle.addEventListener('change', () => {
-  const theme = themeToggle.checked ? 'light' : 'dark';
-  applyTheme(theme);
-  localStorage.setItem(THEME_KEY, theme);
-  draw();
-});
-
-initTheme();
 init();
