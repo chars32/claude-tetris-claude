@@ -30,6 +30,9 @@ const PIECES = [
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
+const POWERUP_LINES_INTERVAL = 5; // cada cuántas líneas se otorga un Rayo
+const POWERUP_SCORE_BONUS = 150;
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
@@ -43,11 +46,35 @@ const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
 const themeIcon = document.getElementById('theme-icon');
+const powerupBadge = document.getElementById('powerup-badge');
+const powerupCountEl = document.getElementById('powerup-count');
+const powerupProgressFill = document.getElementById('powerup-progress-fill');
 
 const THEME_KEY = 'tetris-theme';
 const GRID_LINE_COLORS = { dark: '#22222e', light: '#dfe2f0' };
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let powerupCharges, flashRow, flashUntil;
+let audioCtx = null;
+
+function playPowerupSound() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(120, now + 0.25);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.3);
+  } catch (err) {
+    // audio no disponible, se ignora
+  }
+}
 
 function applyTheme(theme) {
   const isLight = theme === 'light';
@@ -135,12 +162,41 @@ function clearLines() {
     }
   }
   if (cleared) {
+    const prevLines = lines;
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    const gained = Math.floor(lines / POWERUP_LINES_INTERVAL) - Math.floor(prevLines / POWERUP_LINES_INTERVAL);
+    if (gained > 0) powerupCharges += gained;
     updateHUD();
   }
+}
+
+function usePowerup() {
+  if (paused || gameOver || powerupCharges <= 0) return;
+
+  // busca la fila con más bloques ocupados (la más cercana a completarse)
+  let targetRow = -1;
+  let bestCount = 0;
+  for (let r = 0; r < ROWS; r++) {
+    const count = board[r].filter(v => v !== 0).length;
+    if (count > bestCount) {
+      bestCount = count;
+      targetRow = r;
+    }
+  }
+  if (targetRow === -1 || bestCount === 0) return; // nada que limpiar
+
+  board.splice(targetRow, 1);
+  board.unshift(new Array(COLS).fill(0));
+  powerupCharges--;
+  score += POWERUP_SCORE_BONUS;
+  flashRow = targetRow;
+  flashUntil = performance.now() + 200;
+
+  playPowerupSound();
+  updateHUD();
 }
 
 function ghostY() {
@@ -185,6 +241,15 @@ function updateHUD() {
   scoreEl.textContent = score.toLocaleString();
   linesEl.textContent = lines;
   levelEl.textContent = level;
+  updatePowerupHUD();
+}
+
+function updatePowerupHUD() {
+  powerupCountEl.textContent = powerupCharges;
+  const progress = lines % POWERUP_LINES_INTERVAL;
+  const pct = powerupCharges > 0 ? 100 : (progress / POWERUP_LINES_INTERVAL) * 100;
+  powerupProgressFill.style.width = `${pct}%`;
+  powerupBadge.classList.toggle('ready', powerupCharges > 0);
 }
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
@@ -238,6 +303,17 @@ function draw() {
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       drawBlock(ctx, current.x + c, current.y + r, current.shape[r][c], BLOCK);
+
+  // flash del power-up Rayo
+  if (flashRow !== -1 && performance.now() < flashUntil) {
+    const remaining = (flashUntil - performance.now()) / 200;
+    ctx.globalAlpha = Math.max(0, remaining) * 0.85;
+    ctx.fillStyle = '#ffd54f';
+    ctx.fillRect(0, flashRow * BLOCK, COLS * BLOCK, BLOCK);
+    ctx.globalAlpha = 1;
+  } else if (flashRow !== -1) {
+    flashRow = -1;
+  }
 }
 
 function drawNext() {
@@ -300,6 +376,9 @@ function init() {
   gameOver = false;
   dropInterval = 1000;
   dropAccum = 0;
+  powerupCharges = 0;
+  flashRow = -1;
+  flashUntil = 0;
   lastTime = performance.now();
   next = randomPiece();
   spawn();
@@ -329,6 +408,9 @@ document.addEventListener('keydown', e => {
     case 'Space':
       e.preventDefault();
       hardDrop();
+      break;
+    case 'KeyR':
+      usePowerup();
       break;
   }
   updateHUD();
