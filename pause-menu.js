@@ -63,10 +63,6 @@ function showPauseView(view) {
   pauseControlsView.classList.toggle('hidden', view !== 'controls');
 }
 
-function isPauseMenuOpen() {
-  return !pauseOverlay.classList.contains('hidden');
-}
-
 function openPauseMenu() {
   showPauseView('main');
   pauseOverlay.classList.remove('hidden');
@@ -106,6 +102,15 @@ pauseBackBtn.addEventListener('click', () => {
 pauseOverlay.addEventListener('keydown', e => {
   if (e.code === 'Space' || e.code === 'Enter') {
     e.stopPropagation();
+  }
+  if (e.code === 'Escape' && !pauseControlsView.classList.contains('hidden')) {
+    // Dentro de "Ver controles", Escape vuelve a la vista principal en vez
+    // de cerrar todo el menú (evita que el listener global en game.js
+    // interprete el Escape como "Reanudar").
+    e.stopPropagation();
+    showPauseView('main');
+    pauseResumeBtn.focus();
+    return;
   }
   if (e.code !== 'Tab') return;
 
