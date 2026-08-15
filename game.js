@@ -51,11 +51,13 @@ const powerupCountEl = document.getElementById('powerup-count');
 const powerupProgressFill = document.getElementById('powerup-progress-fill');
 
 const THEME_KEY = 'tetris-theme';
-const GRID_LINE_COLORS = { dark: '#22222e', light: '#dfe2f0' };
+
+const skinSelect = document.getElementById('skin-select');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let powerupCharges, flashRow, flashUntil;
 let audioCtx = null;
+let currentSkin = DEFAULT_SKIN;
 
 function playPowerupSound() {
   try {
@@ -99,6 +101,29 @@ themeToggle.addEventListener('click', () => {
 });
 
 initTheme();
+
+// ---- Selector de tema visual (skin) ----
+function applySkin(name) {
+  currentSkin = SKINS[name] ? name : DEFAULT_SKIN;
+  if (skinSelect) skinSelect.value = currentSkin;
+  saveSkinPreference(currentSkin);
+  // fuerza un redibujado inmediato aunque el juego esté pausado
+  if (board) {
+    draw();
+    drawNext();
+  }
+}
+
+function initSkin() {
+  currentSkin = loadSkinPreference();
+  if (skinSelect) skinSelect.value = currentSkin;
+}
+
+if (skinSelect) {
+  skinSelect.addEventListener('change', () => applySkin(skinSelect.value));
+}
+
+initSkin();
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -254,20 +279,15 @@ function updatePowerupHUD() {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
-  context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
-  context.globalAlpha = 1;
+  // delega en la función de dibujo del skin activo
+  const skin = getSkin(currentSkin);
+  skin.drawBlock(context, x, y, colorIndex, size, alpha);
 }
 
 function drawGrid() {
-  ctx.strokeStyle = document.body.classList.contains('light')
-    ? GRID_LINE_COLORS.light
-    : GRID_LINE_COLORS.dark;
+  const skin = getSkin(currentSkin);
+  const isLight = document.body.classList.contains('light');
+  ctx.strokeStyle = isLight ? skin.gridLine.light : skin.gridLine.dark;
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -285,6 +305,10 @@ function drawGrid() {
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const skin = getSkin(currentSkin);
+  const isLight = document.body.classList.contains('light');
+  ctx.fillStyle = isLight ? skin.boardBg.light : skin.boardBg.dark;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   drawGrid();
 
   // board
@@ -318,7 +342,11 @@ function draw() {
 
 function drawNext() {
   const NB = 30;
+  const skin = getSkin(currentSkin);
+  const isLight = document.body.classList.contains('light');
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+  nextCtx.fillStyle = isLight ? skin.boardBg.light : skin.boardBg.dark;
+  nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
   const shape = next.shape;
   const offX = Math.floor((4 - shape[0].length) / 2);
   const offY = Math.floor((4 - shape.length) / 2);
