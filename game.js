@@ -53,7 +53,10 @@ const powerupProgressFill = document.getElementById('powerup-progress-fill');
 const THEME_KEY = 'tetris-theme';
 const GRID_LINE_COLORS = { dark: '#22222e', light: '#dfe2f0' };
 
-let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+// paused/gameOver arrancan en true para que el listener de teclado (que
+// comprueba `paused || gameOver`) no intente operar sobre un estado sin
+// inicializar antes de que se pulse "Jugar" en la pantalla de inicio.
+let board, current, next, score, lines, level, paused = true, gameOver = true, lastTime, dropAccum, dropInterval, animId;
 let powerupCharges, flashRow, flashUntil;
 let audioCtx = null;
 
@@ -170,6 +173,11 @@ function clearLines() {
     const gained = Math.floor(lines / POWERUP_LINES_INTERVAL) - Math.floor(prevLines / POWERUP_LINES_INTERVAL);
     if (gained > 0) powerupCharges += gained;
     updateHUD();
+  }
+  // hook para records.js: informa cuántas líneas se limpiaron en este lock
+  // (incluido 0, para poder resetear el combo)
+  if (typeof window.onLinesClearedForRecords === 'function') {
+    window.onLinesClearedForRecords(cleared);
   }
 }
 
@@ -333,6 +341,10 @@ function endGame() {
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   overlay.classList.remove('hidden');
+  // hook para records.js: procesa el fin de partida contra la tabla de records
+  if (typeof window.onGameOverForRecords === 'function') {
+    window.onGameOverForRecords({ score, lines, level });
+  }
 }
 
 function togglePause() {
@@ -386,6 +398,10 @@ function init() {
   overlay.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
+  // hook para records.js: resetea el seguimiento de combo/líneas de esta partida
+  if (typeof window.resetGameRecordsTracking === 'function') {
+    window.resetGameRecordsTracking();
+  }
 }
 
 document.addEventListener('keydown', e => {
@@ -418,4 +434,5 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', init);
 
-init();
+// El arranque inicial del juego se dispara desde la pantalla de inicio
+// (botón "Jugar" en records.js), no automáticamente al cargar la página.
