@@ -22,6 +22,13 @@
   --toggle-bg: #22223a;
   --toggle-border: #3a3a5a;
   --toggle-icon: #ffd54f;
+  --menu-btn-bg: #22223a;
+  --menu-btn-bg-hover: #2e2e4d;
+  --menu-btn-text: #e0e0e0;
+  --menu-btn-border: #3a3a5a;
+  --select-bg: #1a1a25;
+  --select-border: #3a3a5a;
+  --select-text: #e0e0e0;
 }
 
 body.light {
@@ -48,6 +55,13 @@ body.light {
   --toggle-bg: #e8eaf5;
   --toggle-border: #c7cbe0;
   --toggle-icon: #f5a623;
+  --menu-btn-bg: #e8eaf5;
+  --menu-btn-bg-hover: #d7dbef;
+  --menu-btn-text: #24242e;
+  --menu-btn-border: #c7cbe0;
+  --select-bg: #ffffff;
+  --select-border: #c7cbe0;
+  --select-text: #24242e;
 }
 
 *, *::before, *::after {
@@ -281,4 +295,97 @@ kbd {
 
 #restart-btn:hover {
   background: var(--btn-bg-hover);
+}
+
+/* ---- Menú de pausa ---- */
+.pause-box {
+  width: 220px;
+}
+
+#pause-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: var(--overlay-title);
+}
+
+.pause-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.pause-view.hidden {
+  display: none;
+}
+
+.menu-btn {
+  width: 100%;
+  background: var(--menu-btn-bg);
+  color: var(--menu-btn-text);
+  border: 1px solid var(--menu-btn-border);
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.menu-btn:hover {
+  background: var(--menu-btn-bg-hover);
+}
+
+.menu-btn:focus-visible,
+.pause-level-select select:focus-visible {
+  outline: 2px solid var(--value-color);
+  outline-offset: 2px;
+}
+
+.menu-btn.primary {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border-color: var(--btn-bg);
+}
+
+.menu-btn.primary:hover {
+  background: var(--btn-bg-hover);
+  border-color: var(--btn-bg-hover);
+}
+
+.pause-level-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--control-text);
+}
+
+.pause-level-select select {
+  background: var(--select-bg);
+  color: var(--select-text);
+  border: 1px solid var(--select-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.controls-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.controls-list li {
+  font-size: 12px;
+  color: var(--control-text);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
