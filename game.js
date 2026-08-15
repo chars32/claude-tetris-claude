@@ -339,13 +339,12 @@ function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    if (typeof closePauseMenu === 'function') closePauseMenu();
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    if (typeof openPauseMenu === 'function') openPauseMenu();
   }
 }
 
@@ -371,10 +370,10 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  level = typeof getInitialLevel === 'function' ? getInitialLevel() : 1;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   powerupCharges = 0;
   flashRow = -1;
@@ -389,7 +388,7 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -418,4 +417,6 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', init);
 
-init();
+// Se difiere con setTimeout para que pause-menu.js (cargado justo después de
+// este script) ya haya definido getInitialLevel() antes de la primera partida.
+setTimeout(init, 0);
